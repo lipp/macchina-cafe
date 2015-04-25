@@ -1,0 +1,15 @@
+{
+  "name": "machine-cafe-host",
+  "version": "0.0.0",
+  "description": "Control software for machine-cafe-arduino",
+  "main": "main.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Gerhard Preuss",
+  "license": "BSD-2-Clause",
+  "dependencies": {
+    "node-jet": "~0.1.5",
+    "serialport": "^1.6.3"
+  }
+}

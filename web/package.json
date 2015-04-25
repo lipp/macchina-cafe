@@ -1,0 +1,44 @@
+{
+  "name": "machine-cafe-web",
+  "version": "0.0.0",
+  "description": "Web App for Machina-Cafge",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Gerhard Preuss",
+  "license": "BSD-2-Clause",
+  "dependencies": {
+    "node-jet": "^0.2.0",
+    "normalize.css": "^3.0.3",
+    "smoothie": "^1.27.0"
+  },
+  "devDependencies": {
+    "babel": "^4.0.2",
+    "babel-jest": "^4.0.0",
+    "babelify": "^5.0.4",
+    "browserify": "^9.0.3",
+    "bundle-collapser": "^1.1.4",
+    "csslint": "^0.10.0",
+    "envify": "^3.2.0",
+    "eslint": "^0.15.1",
+    "flux": "^2.0.1",
+    "intl": "^0.1.4",
+    "intl-messageformat": "^1.0.4",
+    "jest-cli": "^0.4.0",
+    "keymirror": "^0.1.1",
+    "myth": "^1.3.0",
+    "object-assign": "^2.0.0",
+    "react": "^0.13.1",
+    "react-intl": "^1.1.0",
+    "react-router": "^0.13.2",
+    "uglify-js": "^2.4.16",
+    "watchify": "^2.3.0"
+  },
+  "jest": {
+    "scriptPreprocessor": "./node_modules/babel-jest",
+    "unmockedModulePathPatterns": [
+      "react"
+    ]
+  }
+}
