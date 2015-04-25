@@ -23,7 +23,7 @@ aJsonObject* read_ains() {
 };
 
 void serial_handshake() {
-/*	while(1) {
+while(1) {
 		if (Serial.available()) {
 			Serial.read();
 			digitalWrite(LED_PIN, HIGH);
@@ -34,8 +34,7 @@ void serial_handshake() {
 			digitalWrite(LED_PIN, HIGH);
 			delay(1000);
 		}	
-	} */
-	delay(5000);
+	}
 }
 
 void setup() {
@@ -62,7 +61,7 @@ void loop() {
 	peer.loop();
 
 	// post new analog in values
-//	ains->value(read_ains());
+	ains->value(read_ains());
 
 	// dont make too much pressure on serial 
 	// interface. 50ms seems max possible.

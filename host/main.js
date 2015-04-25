@@ -30,6 +30,9 @@ serial.on('open', function(err) {
 
 	// write one arbitrary handshake byte.
 	// the arduino waits in "setup" until 1 char is available.
-	serial.write('x');
-	serial.drain();
+	// postpone this action. writing asap breaks the arduino :(
+	setTimeout(function() {
+		serial.write('x');
+		serial.drain();
+	}, 2000);
 });
