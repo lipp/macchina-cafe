@@ -38,3 +38,5 @@ arduino/.build/
 *.swp
 *.swp
 .*.swp
+
+web/js/script.js
