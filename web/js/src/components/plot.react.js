@@ -35,6 +35,15 @@ var Plot = React.createClass({
 	},
 
 	componentDidMount() {
+		peer.fetch('foo', function(path, event, value) {
+			console.log(path, event, value);
+		});
+
+		peer.state({
+			path: 'clients/' + Math.random(),
+			value: true
+		});
+
 		this.ains = JSON.parse(this.props.ains);
 		window.addEventListener('resize', this.handleResize);
 		this.initSmoothie();

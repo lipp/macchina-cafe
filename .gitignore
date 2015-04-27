@@ -32,11 +32,9 @@ arduino/.build/
 
 
 *.a
-
-*.o
-
 *.d
-
 *.o
 
 *.swp
+*.swp
+.*.swp

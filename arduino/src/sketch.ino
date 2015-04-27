@@ -10,61 +10,69 @@ JetPeer peer;
 SerialClient serialClient(Serial);
 
 // analog ins state
-JetState* ains;
+JetState *ains;
+JetState *webControlledState;
 
 // reads all analog ins and converts
 // them to a JSON Array
-aJsonObject* read_ains() {
-	aJsonObject* arr = aJson.createArray();
-	for(int i = 0; i < 6; ++i) {
-		aJson.addItemToArray(arr, aJson.createItem(analogRead(i)));
-	}
-	return arr;
-};
+aJsonObject *read_ains() {
+  aJsonObject *arr = aJson.createArray();
+  for (int i = 0; i < 6; ++i) {
+    aJson.addItemToArray(arr, aJson.createItem(analogRead(i)));
+  }
+  return arr;
+}
 
-void serial_handshake() {
-while(1) {
-		if (Serial.available()) {
-			Serial.read();
-			digitalWrite(LED_PIN, HIGH);
-			return;
-		} else {
-			digitalWrite(LED_PIN, LOW);
-			delay(1000);
-			digitalWrite(LED_PIN, HIGH);
-			delay(1000);
-		}	
-	}
+aJsonObject *createClientsFetchRule() {
+  aJsonObject *rule = aJson.createObject();
+  aJsonObject *path = aJson.createObject();
+  aJson.addItemToObject(rule, "path", path);
+  aJson.addItemToObject(path, "startsWith", aJson.createItem("clients/"));
+  return rule;
+}
+
+int clientCount = 0;
+
+void watchClients(const char *path, const char *event, aJsonObject *val,
+                  void *context) {
+  String ev(event);
+  if (ev.equals("add")) {
+    if (clientCount == 0) {
+      webControlledState->value(aJson.createItem((bool)true));
+      digitalWrite(LED_PIN, HIGH);
+    }
+    ++clientCount;
+  } else if (ev.equals("remove")) {
+    --clientCount;
+    if (clientCount == 0) {
+      webControlledState->value(aJson.createItem((bool)false));
+      digitalWrite(LED_PIN, LOW);
+    }
+  }
 }
 
 void setup() {
-	// init led
-	pinMode(LED_PIN, OUTPUT);
+  // init led
+  pinMode(LED_PIN, OUTPUT);
+  digitalWrite(LED_PIN, LOW);
 
-	Serial.begin(115200);
+  Serial.begin(115200);
 
-	serial_handshake();
+  serialClient.waitHandshake();
 
-	// handover serial to jet peer	
-	peer.init(serialClient);
+  // handover serial to jet peer
+  peer.init(serialClient);
 
-	// create analog ins state
-	// read-only
-	ains = peer.state("ains", read_ains());
+  // create analog ins state
+  // read-only
+  webControlledState =
+      peer.state("web-controled", aJson.createItem((bool)false));
+
+  peer.fetch(createClientsFetchRule(), watchClients);
 }
 
 void loop() {
-	digitalWrite(LED_PIN, HIGH);
-
-	// spin jet peer loop 
-	// eventually triggers function calls (state set)
-	peer.loop();
-
-	// post new analog in values
-	ains->value(read_ains());
-
-	// dont make too much pressure on serial 
-	// interface. 50ms seems max possible.
-	digitalWrite(LED_PIN, LOW);
-	delay(50);
+  // spin jet peer loop
+  // eventually triggers function calls (state set)
+  peer.loop();
 }

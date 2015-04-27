@@ -16,17 +16,10 @@ serial.on('open', function(err) {
 
 	var sock = net.connect(11122);
 
-	serial.on('data', function(data) {
-		sock.write(data);
-	});
+	sock.pipe(serial);
+	serial.pipe(sock);
+	serial.pipe(process.stdout);
 
-	serial.on('close', function() {
-		process.exit(1);
-	});
-
-	sock.on('data', function(data) {
-		serial.write(data);
-	});
 
 	// write one arbitrary handshake byte.
 	// the arduino waits in "setup" until 1 char is available.
