@@ -17,12 +17,12 @@ JetState *webControlledState;
 
 // reads all analog ins and converts
 // them to a JSON Array
-aJsonObject *read_ains() {
+void update_ains(void *) {
   aJsonObject *arr = aJson.createArray();
   for (int i = 0; i < 6; ++i) {
     aJson.addItemToArray(arr, aJson.createItem(analogRead(i)));
   }
-  return arr;
+  ains->value(arr);
 }
 
 aJsonObject *createClientsFetchRule() {
@@ -66,6 +66,7 @@ void toggleLed(void *) {
 }
 
 timer ledTimer(1000, toggleLed);
+timer ainTimer(200, update_ains);
 
 void regulate_pressure(range_checker::event ev) {
   if (ev == range_checker::UNDER_RANGE) {
@@ -104,5 +105,5 @@ void loop() {
   // spin jet peer loop
   // eventually triggers function calls (state set)
   peer.loop();
-  ledTimer.spin();
+  timer::spin_all();
 }
