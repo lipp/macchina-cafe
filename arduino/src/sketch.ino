@@ -3,6 +3,8 @@
 
 #include <ArduinoJetPeer.h>
 #include <SerialClient.h>
+#include "timer.h"
+#include "range-checker.h"
 
 JetPeer peer;
 
@@ -39,17 +41,44 @@ void watchClients(const char *path, const char *event, aJsonObject *val,
   if (ev.equals("add")) {
     if (clientCount == 0) {
       webControlledState->value(aJson.createItem((bool)true));
-      digitalWrite(LED_PIN, HIGH);
+      // digitalWrite(LED_PIN, HIGH);
     }
     ++clientCount;
   } else if (ev.equals("remove")) {
     --clientCount;
     if (clientCount == 0) {
       webControlledState->value(aJson.createItem((bool)false));
-      digitalWrite(LED_PIN, LOW);
+      // digitalWrite(LED_PIN, LOW);
     }
   }
 }
+
+int led = 0;
+
+void toggleLed(void *) {
+  if (led) {
+    led = 0;
+    digitalWrite(LED_PIN, LOW);
+  } else {
+    led = 1;
+    digitalWrite(LED_PIN, HIGH);
+  }
+}
+
+timer ledTimer(1000, toggleLed);
+
+void regulate_pressure(range_checker::event ev) {
+  if (ev == range_checker::UNDER_RANGE) {
+
+  } else {
+  }
+}
+
+range_checker pressure_checker(1,   // ain 1
+                               230, // ok range min
+                               400, // ok range max
+                               200, // 200ms delta
+                               regulate_pressure);
 
 void setup() {
   // init led
@@ -75,4 +104,5 @@ void loop() {
   // spin jet peer loop
   // eventually triggers function calls (state set)
   peer.loop();
+  ledTimer.spin();
 }
