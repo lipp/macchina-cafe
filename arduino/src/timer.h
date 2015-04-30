@@ -8,7 +8,8 @@
 struct timer {
   typedef void (*callback_t)(void *);
   timer(int freq, callback_t cb, void *context = NULL)
-      : _freq(freq), _last(millis()), _cb(cb), _context(context) {
+      : _freq(freq), _last(millis() + timer::_count), _cb(cb),
+        _context(context) {
     _timers[_count] = this;
     _count++;
   };

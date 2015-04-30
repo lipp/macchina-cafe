@@ -1,10 +1,11 @@
 
 #define LED_PIN 13
+#define WEB_LED_PIN 5
 
 #include <ArduinoJetPeer.h>
 #include <SerialClient.h>
 #include "timer.h"
-#include "range-checker.h"
+#include "control-circuit.h"
 
 JetPeer peer;
 
@@ -41,14 +42,14 @@ void watchClients(const char *path, const char *event, aJsonObject *val,
   if (ev.equals("add")) {
     if (clientCount == 0) {
       webControlledState->value(aJson.createItem((bool)true));
-      // digitalWrite(LED_PIN, HIGH);
+      digitalWrite(WEB_LED_PIN, HIGH);
     }
     ++clientCount;
   } else if (ev.equals("remove")) {
     --clientCount;
     if (clientCount == 0) {
       webControlledState->value(aJson.createItem((bool)false));
-      // digitalWrite(LED_PIN, LOW);
+      digitalWrite(WEB_LED_PIN, LOW);
     }
   }
 }
@@ -68,23 +69,28 @@ void toggleLed(void *) {
 timer ledTimer(1000, toggleLed);
 timer ainTimer(200, update_ains);
 
-void regulate_pressure(range_checker::event ev) {
-  if (ev == range_checker::UNDER_RANGE) {
+static const int boiler_ain = 1;
+static const int boiler_dout = 3;
+static const int boiler_dt = 1000;
+static const int boiler_min = 300;
+static const int boiler_max = 800;
 
-  } else {
-  }
-}
-
-range_checker pressure_checker(1,   // ain 1
-                               230, // ok range min
-                               400, // ok range max
-                               200, // 200ms delta
-                               regulate_pressure);
+control_circuit boiler_circuit(
+	boiler_ain,
+	boiler_min,
+	boiler_max,
+	boiler_dt,
+	boiler_dout);
+	
 
 void setup() {
   // init led
   pinMode(LED_PIN, OUTPUT);
   digitalWrite(LED_PIN, LOW);
+  pinMode(WEB_LED_PIN, OUTPUT);
+  digitalWrite(WEB_LED_PIN, LOW);
+
+	boiler_circuit.init();
 
   Serial.begin(115200);
 
@@ -105,5 +111,7 @@ void loop() {
   // spin jet peer loop
   // eventually triggers function calls (state set)
   peer.loop();
+
+	// spins ALL timer based ops.
   timer::spin_all();
 }
