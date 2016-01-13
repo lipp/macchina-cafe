@@ -1,0 +1,3 @@
+[submodule "arduino/lib/Arduino-Jet"]
+	path = arduino/lib/Arduino-Jet
+	url = http://github.com/lipp/Arduino-Jet
