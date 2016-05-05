@@ -2,37 +2,24 @@
 #include "timer.h"
 #include "range-checker.h"
 
-// timer ledTimer(1000, toggleLed);
-
 // OUTPUT
-const int HEIZUNG = 11;
-const int VENTIL = 10;
-const int PUMPE = 9;
+const int HEATER_PIN = 11;
+const int VENT_PIN = 10;
+const int PUMP_PIN = 9;
 
-// CONST Schwellwerte
-const int _val_fuellstand = 600;
-const int _val_kessel_pressure = 334;
+// CONST LIMITS
+const int FILL_LIMIT = 600;
+const int PRESSURE_LIMIT = 334;
 
 // LED
-const int output_LED = 6;
+const int LED_PIN = 6;
 
 // INPUT
-const int SCHALTER = 0;
-const int FUELLSTAND = 1;
-const int DRUCK_KESSEL = 2;
-const int DRUCK_KREISLAUF = 3;
+const int SWITCH_PIN = 0;
+const int FILL_PIN = 1;
+const int PRESSURE_BOILER_PIN = 2;
+const int PRESSURE_CIRCUIT_PIN = 3;
 
-// TEMPS
-int temp_SCHALTER;
-int temp_FUELLSTAND;
-int temp_DRUCK_KESSEL;
-int temp_DRUCK_KREISLAUF;
-
-// TIME
-int long loop_TIME = 0;
-int long print_TIME = 0;
-int long pump_TIME = 0;
-int long heat_TIME = 0;
 
 static const int boiler_ain = 2;
 static const int boiler_dout = 11;
@@ -48,8 +35,8 @@ void enable_heater(bool enable) {
   } else {
     state = LOW;
   }
-  digitalWrite(output_LED, state);
-  digitalWrite(HEIZUNG, state);
+  digitalWrite(LED_PIN, state);
+  digitalWrite(HEATER_PIN, state);
 }
 
 void boiler_event_handler(range_checker::event ev, void *) {
@@ -66,19 +53,14 @@ range_checker boiler_circuit(boiler_ain, boiler_min, boiler_max, boiler_dt,
 // Initialize Values
 void setup() {
   // init IO
-  pinMode(HEIZUNG, OUTPUT);
-  pinMode(VENTIL, OUTPUT);
-  pinMode(PUMPE, OUTPUT);
-  pinMode(output_LED, OUTPUT);
+  pinMode(HEATER_PIN, OUTPUT);
+  pinMode(VENT_PIN, OUTPUT);
+  pinMode(PUMP_PIN, OUTPUT);
+  pinMode(LED_PIN, OUTPUT);
 
   // init serial
   Serial.begin(9600); //  setup serial
 
-  // init TEMPS
-  temp_SCHALTER = 100;
-  temp_FUELLSTAND = 0;
-  temp_DRUCK_KESSEL = 0;
-  temp_DRUCK_KREISLAUF = 0;
 }
 
 void verify_enough_water(void *) {
@@ -104,14 +86,14 @@ void check_switch(void *) {
   }
 }
 
-bool is_switch_on() { return analogRead(SCHALTER) > 1000; }
+bool is_switch_on() { return analogRead(SWITCH_PIN) > 1000; }
 
 void activate_pump(bool enable) {
   int state = enable ? HIGH : LOW;
-  digitalWrite(PUMPE, state);
+  digitalWrite(PUMP_PIN, state);
 }
 
-bool is_enough_water(void) { return analogRead(FUELLSTAND) < _val_fuellstand; }
+bool is_enough_water(void) { return analogRead(FILL_PIN) < FILL_LIMIT; }
 
 timer water_fill_timer(1000, verify_enough_water);
 
@@ -119,21 +101,21 @@ timer switch_timer(10, check_switch);
 
 void open_vent(bool enable) {
   int state = enable ? HIGH : LOW;
-  digitalWrite(VENTIL, state);
+  digitalWrite(VENT_PIN, state);
 }
 
 void print_debug(void *) {
-  Serial.print(analogRead(DRUCK_KESSEL));
+  Serial.print(analogRead(PRESSURE_BOILER_PIN));
   Serial.print(" ");
-  Serial.print(analogRead(DRUCK_KREISLAUF));
+  Serial.print(analogRead(PRESSURE_CIRCUIT_PIN));
   Serial.print(" ");
-  Serial.print(analogRead(SCHALTER));
+  Serial.print(analogRead(SWITCH_PIN));
   Serial.print(" ");
-  Serial.print(digitalRead(VENTIL));
+  Serial.print(digitalRead(VENT_PIN));
   Serial.print(" ");
-  Serial.print(digitalRead(PUMPE));
+  Serial.print(digitalRead(PUMP_PIN));
   Serial.print(" ");
-  Serial.println(analogRead(FUELLSTAND));
+  Serial.println(analogRead(FILL_PIN));
 }
 
 timer debug_timer(500, print_debug);
