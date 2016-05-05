@@ -1,117 +1,144 @@
 
-#define LED_PIN 13
-#define WEB_LED_PIN 5
-
-#include <ArduinoJetPeer.h>
-#include <SerialClient.h>
 #include "timer.h"
-#include "control-circuit.h"
+#include "range-checker.h"
 
-JetPeer peer;
+// timer ledTimer(1000, toggleLed);
 
-// wrap serial as "(Ethernet)Client"
-SerialClient serialClient(Serial);
+// OUTPUT
+const int HEIZUNG = 11;
+const int VENTIL = 10;
+const int PUMPE = 9;
 
-// analog ins state
-JetState *ains;
-JetState *webControlledState;
+// CONST Schwellwerte
+const int _val_fuellstand = 600;
+const int _val_kessel_pressure = 334;
 
-// reads all analog ins and converts
-// them to a JSON Array
-void update_ains(void *) {
-  aJsonObject *arr = aJson.createArray();
-  for (int i = 0; i < 6; ++i) {
-    aJson.addItemToArray(arr, aJson.createItem(analogRead(i)));
-  }
-  ains->value(arr);
-}
+// LED
+const int output_LED = 6;
 
-aJsonObject *createClientsFetchRule() {
-  aJsonObject *rule = aJson.createObject();
-  aJsonObject *path = aJson.createObject();
-  aJson.addItemToObject(rule, "path", path);
-  aJson.addItemToObject(path, "startsWith", aJson.createItem("clients/"));
-  return rule;
-}
+// INPUT
+const int SCHALTER = 0;
+const int FUELLSTAND = 1;
+const int DRUCK_KESSEL = 2;
+const int DRUCK_KREISLAUF = 3;
 
-int clientCount = 0;
+// TEMPS
+int temp_SCHALTER;
+int temp_FUELLSTAND;
+int temp_DRUCK_KESSEL;
+int temp_DRUCK_KREISLAUF;
 
-void watchClients(const char *path, const char *event, aJsonObject *val,
-                  void *context) {
-  String ev(event);
-  if (ev.equals("add")) {
-    if (clientCount == 0) {
-      webControlledState->value(aJson.createItem((bool)true));
-      digitalWrite(WEB_LED_PIN, HIGH);
-    }
-    ++clientCount;
-  } else if (ev.equals("remove")) {
-    --clientCount;
-    if (clientCount == 0) {
-      webControlledState->value(aJson.createItem((bool)false));
-      digitalWrite(WEB_LED_PIN, LOW);
-    }
-  }
-}
+// TIME
+int long loop_TIME = 0;
+int long print_TIME = 0;
+int long pump_TIME = 0;
+int long heat_TIME = 0;
 
-int led = 0;
+static const int boiler_ain = 2;
+static const int boiler_dout = 11;
+static const int boiler_dt = 10;
+static const int boiler_min = 339;
+static const int boiler_max = 340;
+enum event { IN_RANGE, UNDER_RANGE, OVER_RANGE, UNKNOWN_RANGE };
 
-void toggleLed(void *) {
-  if (led) {
-    led = 0;
-    digitalWrite(LED_PIN, LOW);
+void enable_heater(bool enable) {
+  int state;
+  if (enable) {
+    state = HIGH;
   } else {
-    led = 1;
-    digitalWrite(LED_PIN, HIGH);
+    state = LOW;
+  }
+  digitalWrite(output_LED, state);
+  digitalWrite(HEIZUNG, state);
+}
+
+void boiler_event_handler(range_checker::event ev, void *) {
+  if (ev == range_checker::UNDER_RANGE) {
+    enable_heater(true);
+  } else if (ev == range_checker::OVER_RANGE) {
+    enable_heater(false);
   }
 }
 
-timer ledTimer(1000, toggleLed);
-timer ainTimer(200, update_ains);
+range_checker boiler_circuit(boiler_ain, boiler_min, boiler_max, boiler_dt,
+                             boiler_event_handler);
 
-static const int boiler_ain = 1;
-static const int boiler_dout = 3;
-static const int boiler_dt = 1000;
-static const int boiler_min = 300;
-static const int boiler_max = 800;
-
-control_circuit boiler_circuit(
-	boiler_ain,
-	boiler_min,
-	boiler_max,
-	boiler_dt,
-	boiler_dout);
-	
-
+// Initialize Values
 void setup() {
-  // init led
-  pinMode(LED_PIN, OUTPUT);
-  digitalWrite(LED_PIN, LOW);
-  pinMode(WEB_LED_PIN, OUTPUT);
-  digitalWrite(WEB_LED_PIN, LOW);
+  // init IO
+  pinMode(HEIZUNG, OUTPUT);
+  pinMode(VENTIL, OUTPUT);
+  pinMode(PUMPE, OUTPUT);
+  pinMode(output_LED, OUTPUT);
 
-	boiler_circuit.init();
+  // init serial
+  Serial.begin(9600); //  setup serial
 
-  Serial.begin(115200);
-
-  serialClient.waitHandshake();
-
-  // handover serial to jet peer
-  peer.init(serialClient);
-
-  // create analog ins state
-  // read-only
-  webControlledState =
-      peer.state("web-controled", aJson.createItem((bool)false));
-
-  peer.fetch(createClientsFetchRule(), watchClients);
+  // init TEMPS
+  temp_SCHALTER = 100;
+  temp_FUELLSTAND = 0;
+  temp_DRUCK_KESSEL = 0;
+  temp_DRUCK_KREISLAUF = 0;
 }
+
+void verify_enough_water(void *) {
+  if (!is_enough_water()) {
+    activate_pump(true);
+    open_vent(true);
+  } else {
+    activate_pump(false);
+    open_vent(false);
+  }
+}
+
+void check_switch(void *) {
+  if (!is_enough_water()) {
+    return;
+  }
+  if (is_switch_on()) {
+    activate_pump(true);
+    open_vent(false);
+  } else {
+    activate_pump(false);
+    open_vent(false);
+  }
+}
+
+bool is_switch_on() { return analogRead(SCHALTER) > 1000; }
+
+void activate_pump(bool enable) {
+  int state = enable ? HIGH : LOW;
+  digitalWrite(PUMPE, state);
+}
+
+bool is_enough_water(void) { return analogRead(FUELLSTAND) < _val_fuellstand; }
+
+timer water_fill_timer(1000, verify_enough_water);
+
+timer switch_timer(10, check_switch);
+
+void open_vent(bool enable) {
+  int state = enable ? HIGH : LOW;
+  digitalWrite(VENTIL, state);
+}
+
+void print_debug(void *) {
+  Serial.print(analogRead(DRUCK_KESSEL));
+  Serial.print(" ");
+  Serial.print(analogRead(DRUCK_KREISLAUF));
+  Serial.print(" ");
+  Serial.print(analogRead(SCHALTER));
+  Serial.print(" ");
+  Serial.print(digitalRead(VENTIL));
+  Serial.print(" ");
+  Serial.print(digitalRead(PUMPE));
+  Serial.print(" ");
+  Serial.println(analogRead(FUELLSTAND));
+}
+
+timer debug_timer(500, print_debug);
 
 void loop() {
-  // spin jet peer loop
-  // eventually triggers function calls (state set)
-  peer.loop();
-
-	// spins ALL timer based ops.
+  // spins ALL timer based ops.
   timer::spin_all();
 }
