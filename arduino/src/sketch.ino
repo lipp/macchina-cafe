@@ -1,6 +1,17 @@
 
 #include "timer.h"
 #include "range-checker.h"
+#include <ArduinoJetPeer.h>
+#include <SerialClient.h>
+
+
+// wrap Serial as "(Ethernet)Client"
+SerialClient serial_client(Serial);
+
+/* jet global vars: peer and states/methods */
+JetPeer peer;
+JetState *mode_state;
+JetState *ain_state;
 
 // OUTPUT
 const int HEATER_PIN = 11;
@@ -50,6 +61,18 @@ void boiler_event_handler(range_checker::event ev, void *) {
 range_checker boiler_circuit(boiler_ain, boiler_min, boiler_max, boiler_dt,
                              boiler_event_handler);
 
+int mode = 0;
+
+/* a jet state callback function example */
+bool set_mode(aJsonObject *mode_val, void *context) {
+  if (mode_val->valuebool) {
+	mode = 1;
+  } else {
+	mode = 0;
+  }
+  return true;
+}
+
 // Initialize Values
 void setup() {
   // init IO
@@ -59,8 +82,11 @@ void setup() {
   pinMode(LED_PIN, OUTPUT);
 
   // init serial
-  Serial.begin(9600); //  setup serial
+  Serial.begin(115200); 
 
+  peer.init(serial_client);
+  mode_state = peer.state("cafe/mode", aJson.createItem((bool)mode), set_mode);
+  ain_state = peer.state("cafe/ains", aJson.createItem((bool)false));
 }
 
 void verify_enough_water(void *) {
